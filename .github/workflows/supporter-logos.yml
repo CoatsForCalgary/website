@@ -1,0 +1,68 @@
+name: Pull supporter logos from Drive
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  logos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pillow
+      - name: Download, trim and shrink
+        run: |
+          mkdir -p images/supporters
+          cat > /tmp/list.txt <<'LIST'
+            14UhRG_PrgnqPt-jhMGByeaq_TO5XaINv 3peak-inspections.png
+            1VNgyPG0N3ObIJXhMMptpdq1b8josk0C8 banff-springs-golf-course.png
+            1Jam2muweEX4euY3iORtqw7OQ2GjuhalC boots-transport.png
+            1WQSWDmXo_xJIc26i1-WUpv4HxvNVpaC2 canmore-golf-curling-club.png
+            16Kgk5Z2S17awPUL4naB9BY70P0dasm4e carnmoney-golf-club.png
+            1Azsqf_B-kougZ0qKsKSS0OiSbaNScbzg gareth-morris.png
+            1HM7wjUXPvRS6ihl1_foF-8C23aZEcwJv highwood-golf-club.png
+            1ujQYJAIWy7xPYZrAx4JTbmUrMhHcKTNI inglewood-golf-curling-club.png
+            1Xj7kSOZsouJZ561GThe02JZievkIUiki auburn-kids-stop.png
+            1H4gUCYN8NqVjY9EAv5h_cC-WRO3Y5M_k lakeside-golf-club.png
+            1QHBT5C2MGWgrvmQyNso7LOoMY2We31TT mark-john.png
+            1p2UJN3TQBLo0Hg1mZ_7x_lmicnrhlkuG mathew-said-morley.png
+            1E8mYoNqAkfTNAovUChp3jTmRSrstyU86 mountain-springs-calvary-chapel.png
+            1AKJQyayzkST9M4_RK69R-mrZk2njVpU9 pinebrook-golf-country-club.png
+            1KhlHXBCnw_7OnseZtaVLjIVGJnoeToAs pti.png
+            1sopmhl6TVb7HJeSx9hTFxehKxgThhMve riteway.png
+            1H350UNzr9-zCRtw9vSJaP2GT6OIBI5gD silver-springs-golf-country-club.png
+            1VO9xWW-gSCQDSVjaKo61302Z1_cfINNY sirocco-golf-club.png
+            1IzDzkpeN1bFYS62Lz7Yhhn5vuogCij0b stewart-creek-golf.png
+            1MHS_2Jibt6KwCHFl2IiM7x-bHIqf5eXZ sunwest.png
+            18N94Nv7cXYZNpLVlKsmxzOVnmi8dRe2J valley-ridge-golf-club.png
+            1qzPCRhpYqJDiU37R3GcX5ckADub98h8w willow-park-golf-country-club.png
+          LIST
+          cat > /tmp/proc.py <<'PY'
+          import io, sys, urllib.request
+          from PIL import Image
+          for line in open('/tmp/list.txt'):
+              line = line.strip()
+              if not line: continue
+              fid, name = line.split()
+              data = urllib.request.urlopen(f"https://drive.usercontent.google.com/download?id={fid}&export=download&confirm=t").read()
+              im = Image.open(io.BytesIO(data)); im.load(); im = im.convert("RGBA")
+              W, H = im.size
+              mask = Image.new("L", (W, H), 0)
+              mp = mask.load(); px = im.load()
+              for yy in range(H):
+                  for xx in range(W):
+                      r, g, b, a = px[xx, yy]
+                      if a > 20 and not (r > 238 and g > 238 and b > 238): mp[xx, yy] = 255
+              l, t, r, b = mask.getbbox() or (0, 0, W, H)
+              p = int(max(r - l, b - t) * 0.03)
+              im = im.crop((max(0, l - p), max(0, t - p), min(W, r + p), min(H, b + p)))
+              im.thumbnail((400, 200), Image.LANCZOS)
+              im.save(f"images/supporters/{name}", optimize=True)
+              print(name, im.size)
+          PY
+          python3 /tmp/proc.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images/supporters
+          git commit -m "Add the 22 supporter logos (from the 2026 Supporter Logos Drive folder)" || echo "nothing new"
+          git push
