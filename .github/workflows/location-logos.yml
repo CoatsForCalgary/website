@@ -1,0 +1,117 @@
+name: Pull drop-off location logos from Drive
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  logos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ghostscript librsvg2-bin && pip install pillow
+      - name: Download, convert, trim and shrink
+        run: |
+          mkdir -p images/locations /tmp/raw
+          cat > /tmp/list.txt <<'LIST'
+            1CdQUP_8CkPXPtDsv3z6Zd216AypQTs4A anita-ip
+            1BiOvAMz_DacR_i2JZ4bOXfk4MGRO1cif world-bier-haus
+            1ehyBSFbOCTqKzId0OqyLCQMHrLMOKt4_ mortgage-connection
+            1hVcTFkCTgFlc3A15SOarVYzXiq6Z_5IV new-brighton
+            1kK698Miet_Ls4TuiARc3SY6l8AwHzjIq village-brewery
+            1vdqy_U-AWgKP3uNZRNglpcSImq6cxnlL vitality-wellness
+            1rqkLJrUrJoa5IAXDow_6zUcW07pDW9ky remax-first
+            17vIrDHun9uFRcJRFTdeyu99c_AywMSuz the-station
+            1fUb9EJJ6GC2Y_LNQnKVirP2_Oy7OgutL sabre
+            17S0I1yf9P-8t5HL5Z7SPqzby8nkRN4K7 yyc-cycle
+            16FbiIW4zhlL0CgprObVzuBtw1fp00gY- the-park
+            1yf783BjRKsufstd5KeOK7HPn1W3Bh_ui centron
+            1MY2GLx-LIFS4hvuZ8xHLBgjCMclxOg-0 rev
+            1og06H_we6O7OLW24ZbLBZW6S6WSqEa5a rejuvenation
+            1EArItZ_oZ8XgUVQt0op9lldP8MwpUm0b california-tan
+            1pVYPBQE32dNlCTYvnSGFOZiDKhm8fisi cranston
+            16qwdGDwivjLxnb_TyaliAG9iOwwAlL3f kings-fitness
+            1xQXCsA56-vDwvNonaXMOccI_kETo60dX buffalo-bobs
+            1jSC1Vu_HNGJQzeJ9Bm8HHElvwlgL3H25 auburn-bay
+            1Y8JYvZu3ephXSkveii57HzmW130hvyW_ dental-360
+            1RwnOsEPQK2Auh0z8EmwWzBJw7oywyhEc cold-beer-pizza
+            1_W8kZeh4LCsBIDiIdMb-gVrWlhoTjl3g mercedes-benz-downtown
+            1hlGbd0G1o23IYkqeoPmACbgo0Eb6OIEA porch
+            1FTSArphKsqNJOrWs1kdKE7b1plMxbZI6 penny-black
+            1vTiV2Txf1mBF-NOcqJETr_X-j2CMJKD1 rockwell
+            1ESreWYtCS30OZi831Phw3AU6MSNqTIhj clearview
+            1M7wjTUM-w3LmZzICHSIWMvBGTG2lz5G1 golds-gym
+            10HwNO60xw1n4OM0GsE9WG8RDyGnPu7Cd toms-pizza
+            1qu2nONMqyiDqTS6YdaBYSW38vCp75C5Q mercedes-benz-country-hills
+            1ZewDF0BhcjEG6fL26TYRlMJ3mU1CPo1G newcastle
+            1Ar8CRDd7rKTlPYDMqwSdILXkDxpYa0F4 kahanoff
+            1bsoX6J2yS3B6YevDeU2ATKebxRYDHs6R inhale-exhale
+            1n7cfI3jJBORJ4zbS0M12AfhSXqgeLdJU the-realm
+            1va-9CfwuaF_1F4gWeF0HpT_eJGExcaUr north-hill-curling
+            1YAPwIgqH8nsGYvnFmj_PZ_SPJchbKpGt annex
+            1cwcoGMNZgBqsiq3MZzNXFNA50qFBzTRM property-law
+            1-lWB_ek0987NVKg_BR5x3MO4M0QFatyj crestview
+            1-A687AOn3vesPhaOghMNVRTlya-ckIf4 brewsmith
+            1Pek3y2CmtQqokMrR5VvWq-iU1LyG1HO7 cables-lace
+            1QR_x5eINSsIqdUreQ-7Z5peN2RgUdB4g creb
+            15irlRKoy4diJ-TnxOjV1CQTL3LrSy69t westmount
+            1hiofq8z7nprJ7T67VDKnMwD8kejFwU9M werklund
+            1Q9-hCgjI9sesIkkDbtuiapKoy4yhYNf8 parkland
+            1cA87UAKQRebY03vkSumSSsZq3EmHGDBx rally-pointe
+            1MCSrYzpc6eh2scKe66palKZHaemfevCI vive
+            1awg3w0DTtb66vaPvJDn27tCqthyCBqmT douglas-family-chiro
+          LIST
+          cat > /tmp/proc.py <<'PY'
+          import io, subprocess, urllib.request
+          from PIL import Image
+          Image.MAX_IMAGE_PIXELS = None
+          bad = []
+          PRECROP = {"vitality-wellness": (0, 0, 0.5, 1), "mercedes-benz-downtown": (0, 0, 0.8, 1)}
+          RECOLOR = {"the-station": (78, 69, 66)}
+          for line in open('/tmp/list.txt'):
+              line = line.strip()
+              if not line: continue
+              fid, name = line.split()
+              try:
+                  data = urllib.request.urlopen(f"https://drive.usercontent.google.com/download?id={fid}&export=download&confirm=t").read()
+                  raw = f"/tmp/raw/{name}"
+                  open(raw, "wb").write(data)
+                  head = data[:16]
+                  if head.startswith(b"%PDF") or head.startswith(b"%!PS") or head.startswith(b"\xc5\xd0\xd3\xc6"):
+                      subprocess.run(["gs","-q","-dSAFER","-dBATCH","-dNOPAUSE","-dEPSCrop","-dFirstPage=1","-dLastPage=1","-sDEVICE=pngalpha","-r300",f"-sOutputFile={raw}.png",raw], check=True)
+                      im = Image.open(raw + ".png")
+                  elif b"<svg" in data[:4000] or b"<?xml" in data[:100]:
+                      subprocess.run(["rsvg-convert","-w","1600","-o",raw + ".png",raw], check=True)
+                      im = Image.open(raw + ".png")
+                  else:
+                      im = Image.open(io.BytesIO(data))
+                  im.load(); im = im.convert("RGBA")
+                  im.thumbnail((2400, 2400), Image.LANCZOS)
+                  if name in PRECROP:
+                      a, b2, c, d = PRECROP[name]; W, H = im.size
+                      im = im.crop((int(a*W), int(b2*H), int(c*W), int(d*H)))
+                  if name in RECOLOR:
+                      solid = Image.new("RGBA", im.size, RECOLOR[name] + (255,)); solid.putalpha(im.getchannel("A")); im = solid
+                  W, H = im.size
+                  px = im.load()
+                  mask = Image.new("L", (W, H), 0); mp = mask.load()
+                  for yy in range(H):
+                      for xx in range(W):
+                          r, g, b, a = px[xx, yy]
+                          if a > 20 and not (r > 238 and g > 238 and b > 238): mp[xx, yy] = 255
+                  l, t, r, b = mask.getbbox() or (0, 0, W, H)
+                  p = int(max(r - l, b - t) * 0.03)
+                  im = im.crop((max(0, l - p), max(0, t - p), min(W, r + p), min(H, b + p)))
+                  im.thumbnail((400, 200), Image.LANCZOS)
+                  im.save(f"images/locations/{name}.png", optimize=True)
+                  print("OK", name, im.size)
+              except Exception as e:
+                  bad.append(name); print("FAILED", name, repr(e))
+          print("Failed:", bad)
+          PY
+          python3 /tmp/proc.py
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images/locations
+          git commit -m "Add the drop-off location logos (from the Drive folder)" || echo "nothing new"
+          git push
