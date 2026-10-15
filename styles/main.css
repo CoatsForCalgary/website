@@ -78,6 +78,7 @@ section.alt{background:var(--paper)}
 
 .locs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;margin-top:28px}
 .loc{border:3px dashed var(--line);border-radius:10px;padding:18px 20px}
+.loc-logo{display:block;height:60px;width:auto;max-width:100%;object-fit:contain;object-position:left center;background:#fff;padding:6px 8px;border-radius:6px;margin:0 0 12px}
 .loc h3{font-size:1.05rem;margin:0 0 4px}
 .loc p{margin:0;color:var(--ink-soft);font-size:1rem}
 .loc a{font-family:Montserrat,sans-serif;font-weight:600;font-size:.9rem}
